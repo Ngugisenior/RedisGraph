@@ -138,7 +138,7 @@ void _DeleteEntities(OpDelete *op) {
     for(int i = 0; i < deleted_edge_count; i++) {
         Edge *e = op->deleted_edges + i;
         if(Graph_DeleteEdge(op->gc->g, e, false))
-            if(op->result_set) op->result_set->stats.relationships_deleted++;
+            if(op->stats) op->stats->relationships_deleted++;
     }
 
     /* Node deletion, 
@@ -149,7 +149,7 @@ void _DeleteEntities(OpDelete *op) {
         GraphContext_DeleteNodeFromIndices(op->gc, n);
         // Node's edges should been already deleted.
         Graph_DeleteNode(op->gc->g, n);
-        if(op->result_set) op->result_set->stats.nodes_deleted++;
+        if(op->stats) op->stats->nodes_deleted++;
     }
 
     /* Release lock. */
@@ -159,7 +159,7 @@ void _DeleteEntities(OpDelete *op) {
     // array_free(_temp);
 }
 
-OpBase* NewDeleteOp(uint *nodes_ref, uint *edges_ref, ResultSet *result_set) {
+OpBase* NewDeleteOp(uint *nodes_ref, uint *edges_ref, ResultSetStatistics *stats) {
     OpDelete *op_delete = malloc(sizeof(OpDelete));
 
     op_delete->gc = GraphContext_GetFromTLS();
@@ -171,7 +171,7 @@ OpBase* NewDeleteOp(uint *nodes_ref, uint *edges_ref, ResultSet *result_set) {
 
     op_delete->deleted_nodes = array_new(Node, 32);
     op_delete->deleted_edges = array_new(Edge, 32);
-    op_delete->result_set = result_set;
+    op_delete->stats = stats;
 
     // Set our Op operations
     OpBase_Init(&op_delete->op);
