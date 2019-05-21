@@ -126,7 +126,7 @@ void _DeleteEntities(OpDelete *op) {
             // Only track deletions of unique edges.
             edges_deleted++;
         }
-        if(op->result_set) op->result_set->stats.relationships_deleted += edges_deleted;
+        op->stats->relationships_deleted += edges_deleted;
     }
 
     /* Explicitly delete requested edges, edges in the op->deleted_edges array
@@ -149,7 +149,7 @@ void _DeleteEntities(OpDelete *op) {
         GraphContext_DeleteNodeFromIndices(op->gc, n);
         // Node's edges should been already deleted.
         Graph_DeleteNode(op->gc->g, n);
-        if(op->stats) op->stats->nodes_deleted++;
+        op->stats->nodes_deleted++;
     }
 
     /* Release lock. */
