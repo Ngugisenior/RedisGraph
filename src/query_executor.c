@@ -17,111 +17,109 @@
 
 /* Modifies AST by expanding RETURN * or RETURN
  * a into a list of individual properties. */
-AR_ExpNode** _ExpandCollapsedNodes(AST *ast, AR_ExpNode **return_expressions) {
+// AR_ExpNode** _ExpandCollapsedNodes(AST *ast, AR_ExpNode **return_expressions) {
 
-    char buffer[256];
-    GraphContext *gc = GraphContext_GetFromTLS();
+    // char buffer[256];
+    // GraphContext *gc = GraphContext_GetFromTLS();
 
-    unsigned int return_expression_count = array_len(return_expressions);
-    AR_ExpNode **expandReturnElements = array_new(AR_ExpNode*, return_expression_count);
+    // unsigned int return_expression_count = array_len(return_expressions);
+    // AR_ExpNode **expandReturnElements = array_new(AR_ExpNode*, return_expression_count);
 
-    /* Scan return clause, search for collapsed nodes. */
-    for (unsigned int i = 0; i < return_expression_count; i++) {
-        AR_ExpNode *exp = return_expressions[i];
+    // [> Scan return clause, search for collapsed nodes. <]
+    // for (unsigned int i = 0; i < return_expression_count; i++) {
+        // AR_ExpNode *exp = return_expressions[i];
 
         /* Detect collapsed entity,
          * A collapsed entity is represented by an arithmetic expression
          * of AR_EXP_OPERAND type,
          * The operand type should be AST_AR_EXP_VARIADIC,
          * lastly property should be missing. */
-        if (exp->collapsed) {
+        // if (exp->collapsed) {
 
             /* Return clause doesn't contains entity's label,
              * Find collapsed entity's label. */
-            // TODO fails for reference expressions:
-            // MATCH (a) WITH a RETURN a
-            const cypher_astnode_t *ast_entity = exp->operand.variadic.ast_ref;
-            uint idx = (exp->record_idx != NOT_IN_RECORD) ? exp->record_idx : exp->operand.variadic.entity_alias_idx;
-            AR_ExpNode *collapsed_entity = ast->defined_entities[idx];
-            // Entity was an expression rather than a node or edge
-            // if (collapsed_entity->t != A_ENTITY) continue;
+            // // TODO fails for reference expressions:
+            // // MATCH (a) WITH a RETURN a
+            // const cypher_astnode_t *ast_entity = exp->operand.variadic.ast_ref;
+            // uint idx = (exp->record_idx != NOT_IN_RECORD) ? exp->record_idx : exp->operand.variadic.entity_alias_idx;
+            // AR_ExpNode *collapsed_entity = ast->defined_entities[idx];
+            // // Entity was an expression rather than a node or edge
+            // // if (collapsed_entity->t != A_ENTITY) continue;
 
 
-            cypher_astnode_type_t type = cypher_astnode_type(ast_entity);
+            // cypher_astnode_type_t type = cypher_astnode_type(ast_entity);
 
-            SchemaType schema_type;
-            Schema *schema;
-            const char *label = NULL;
-            if (type == CYPHER_AST_NODE_PATTERN) {
-                schema_type = SCHEMA_NODE;
-                if (cypher_ast_node_pattern_nlabels(ast_entity) > 0) {
-                    const cypher_astnode_t *label_node = cypher_ast_node_pattern_get_label(ast_entity, 0);
-                    label = cypher_ast_label_get_name(label_node);
-                }
-            } else if (type == CYPHER_AST_REL_PATTERN) {
-                schema_type = SCHEMA_EDGE;
-                if (cypher_ast_rel_pattern_nreltypes(ast_entity) > 0) {
-                    // TODO collect all reltypes or update logic elesewhere
-                    const cypher_astnode_t *reltype_node = cypher_ast_rel_pattern_get_reltype(ast_entity, 0);
-                    label = cypher_ast_reltype_get_name(reltype_node);
-                }
-            } else {
-                assert(false);
-            }
+            // SchemaType schema_type;
+            // Schema *schema;
+            // const char *label = NULL;
+            // if (type == CYPHER_AST_NODE_PATTERN) {
+                // schema_type = SCHEMA_NODE;
+                // if (cypher_ast_node_pattern_nlabels(ast_entity) > 0) {
+                    // const cypher_astnode_t *label_node = cypher_ast_node_pattern_get_label(ast_entity, 0);
+                    // label = cypher_ast_label_get_name(label_node);
+                // }
+            // } else if (type == CYPHER_AST_REL_PATTERN) {
+                // schema_type = SCHEMA_EDGE;
+                // if (cypher_ast_rel_pattern_nreltypes(ast_entity) > 0) {
+                    // // TODO collect all reltypes or update logic elesewhere
+                    // const cypher_astnode_t *reltype_node = cypher_ast_rel_pattern_get_reltype(ast_entity, 0);
+                    // label = cypher_ast_reltype_get_name(reltype_node);
+                // }
+            // } else {
+                // assert(false);
+            // }
 
-            /* Find label's properties. */
-            if(label) {
-                /* Collapsed entity has a label. */
-                schema = GraphContext_GetSchema(gc, label, schema_type);
-            } else {
-                /* Entity does have a label, Consult with unified schema. */
-                schema = GraphContext_GetUnifiedSchema(gc, schema_type);
-            }
+            // [> Find label's properties. <]
+            // if(label) {
+                // [> Collapsed entity has a label. <]
+                // schema = GraphContext_GetSchema(gc, label, schema_type);
+            // } else {
+                // [> Entity does have a label, Consult with unified schema. <]
+                // schema = GraphContext_GetUnifiedSchema(gc, schema_type);
+            // }
 
-            void *ptr = NULL;       /* schema property value, (not in use). */
-            char *prop = NULL;      /* Entity property. */
-            tm_len_t prop_len = 0;  /* Length of entity's property. */
+            // void *ptr = NULL;       [> schema property value, (not in use). <]
+            // char *prop = NULL;      [> Entity property. <]
+            // tm_len_t prop_len = 0;  [> Length of entity's property. <]
 
-            AR_ExpNode *expanded_exp;
-            if(!schema || Schema_AttributeCount(schema) == 0) {
+            // AR_ExpNode *expanded_exp;
+            // if(!schema || Schema_AttributeCount(schema) == 0) {
                 /* Schema missing or
                  * label doesn't have any properties.
                  * Create a fake return element. */
-                expanded_exp = AR_EXP_NewConstOperandNode(SI_ConstStringVal(""));
-                expanded_exp->alias = exp->alias;
-                expandReturnElements = array_append(expandReturnElements, expanded_exp);
-            } else {
-                TrieMapIterator *it = TrieMap_Iterate(schema->attributes, "", 0);
-                while(TrieMapIterator_Next(it, &prop, &prop_len, &ptr)) {
-                    prop_len = MIN(255, prop_len);
-                    memcpy(buffer, prop, prop_len);
-                    buffer[prop_len] = '\0';
+                // expanded_exp = AR_EXP_NewConstOperandNode(SI_ConstStringVal(""));
+                // expanded_exp->alias = exp->alias;
+                // expandReturnElements = array_append(expandReturnElements, expanded_exp);
+            // } else {
+                // TrieMapIterator *it = TrieMap_Iterate(schema->attributes, "", 0);
+                // while(TrieMapIterator_Next(it, &prop, &prop_len, &ptr)) {
+                    // prop_len = MIN(255, prop_len);
+                    // memcpy(buffer, prop, prop_len);
+                    // buffer[prop_len] = '\0';
 
-                    /* Create a new return element foreach property. */
-                    uint id = AST_AddRecordEntry(ast);
-                    expanded_exp = AR_EXP_NewPropertyOperator(exp, buffer);
-                    AR_EXP_AssignRecordIndex(expanded_exp, id);
-                    ast->defined_entities = array_append(ast->defined_entities, expanded_exp);
+                    // [> Create a new return element foreach property. <]
+                    // expanded_exp = AR_EXP_NewPropertyOperator(exp->operand.variadic.entity_alias_idx, buffer, exp->operand.variadic.entity_type);
+                    // // ast->defined_entities = array_append(ast->defined_entities, expanded_exp);
 
-                    // TODO This logic is terrible, but only required until we remove collapsed entities
-                    char *expanded_name;
-                    AR_EXP_ToString(expanded_exp, &expanded_name);
-                    AST_MapAlias(ast, expanded_name, expanded_exp);
-                    expanded_exp->alias = expanded_name;
-                    expandReturnElements = array_append(expandReturnElements, expanded_exp);
-                }
-                TrieMapIterator_Free(it);
-            }
-        } else {
-            expandReturnElements = array_append(expandReturnElements, exp);
-        }
-    }
+                    // // TODO This logic is terrible, but only required until we remove collapsed entities
+                    // char *expanded_name;
+                    // AR_EXP_ToString(expanded_exp, &expanded_name);
+                    // AST_MapAlias(ast, expanded_name, expanded_exp);
+                    // expanded_exp->alias = expanded_name;
+                    // expandReturnElements = array_append(expandReturnElements, expanded_exp);
+                // }
+                // TrieMapIterator_Free(it);
+            // }
+        // } else {
+            // expandReturnElements = array_append(expandReturnElements, exp);
+        // }
+    // }
 
-    /* Override previous return clause. */
-    array_free(return_expressions);
+    // [> Override previous return clause. <]
+    // array_free(return_expressions);
 
-    return expandReturnElements;
-}
+    // return expandReturnElements;
+// }
 
 AST_Validation AST_PerformValidations(RedisModuleCtx *ctx, const AST *ast) {
     char *reason;
@@ -242,8 +240,6 @@ AR_ExpNode** _ReturnExpandAll(AST *ast) {
         AR_ExpNode *entity = ast->defined_entities[i];
         const char *alias = entity->operand.variadic.entity_alias;
         if (alias) {
-            entity->alias = alias;
-            entity->collapsed = true;
             return_expressions = array_append(return_expressions, entity);
         }
     }
@@ -264,28 +260,22 @@ AR_ExpNode** _BuildReturnExpressions(AST *ast, const cypher_astnode_t *ret_claus
 
         AR_ExpNode *exp = NULL;
         char *identifier = NULL;
+        uint id = NOT_IN_RECORD;
 
         if (cypher_astnode_type(expr) == CYPHER_AST_IDENTIFIER) {
             // Retrieve "a" from "RETURN a" or "RETURN a AS e"
             identifier = (char*)cypher_ast_identifier_get_name(expr);
-            exp = AST_GetEntityFromAlias(ast, (char*)identifier);
+            id = AST_GetEntityFromAlias(ast, (char*)identifier);
         }
 
-        if (exp == NULL) {
+        if (id == NOT_IN_RECORD) {
             // Identifier did not appear in previous clauses.
             // It may be a constant or a function call (or other?)
             // Create a new entity to represent it.
             exp = AR_EXP_FromExpression(ast, expr);
 
-            if (exp->type == AR_EXP_OPERAND &&
-                    exp->operand.type == AR_EXP_VARIADIC &&
-                    exp->operand.variadic.entity_prop == NULL) {
-                exp->collapsed = true;
-            } else {
-                exp->collapsed = false;
-            }
             // Make space for entity in record
-            unsigned int id = AST_AddRecordEntry(ast);
+            unsigned int id = AST_MapEntity(ast, expr);
             AR_EXP_AssignRecordIndex(exp, id);
             // Add entity to the set of entities to be populated
             ast->defined_entities = array_append(ast->defined_entities, exp);
@@ -297,9 +287,6 @@ AR_ExpNode** _BuildReturnExpressions(AST *ast, const cypher_astnode_t *ret_claus
         if (alias_node) {
             // The projection either has an alias (AS) or is a function call.
             alias = (char*)cypher_ast_identifier_get_name(alias_node);
-            // TODO can the alias have appeared in an earlier clause?
-            // (Yes.)
-            // Associate alias with the expression
             AST_MapAlias(ast, alias, exp);
             exp->alias = alias;
         } else {
@@ -357,17 +344,17 @@ AR_ExpNode** AST_BuildOrderExpressions(AST *ast, const cypher_astnode_t *order_c
 AR_ExpNode** AST_BuildReturnExpressions(AST *ast, const cypher_astnode_t *ret_clause) {
     AR_ExpNode **exps = _BuildReturnExpressions(ast, ret_clause);
 
-    bool contains_collapsed = false;
-    uint exp_count = array_len(exps);
-    for (uint i = 0; i < exp_count; i ++) {
-        if (exps[i]->collapsed == true) {
-            contains_collapsed = true;
-            break;
-        }
-    }
-    if (contains_collapsed) {
-        exps = _ExpandCollapsedNodes(ast, exps);
-    }
+    // bool contains_collapsed = false;
+    // uint exp_count = array_len(exps);
+    // for (uint i = 0; i < exp_count; i ++) {
+        // if (exps[i]->collapsed == true) {
+            // contains_collapsed = true;
+            // break;
+        // }
+    // }
+    // if (contains_collapsed) {
+        // exps = _ExpandCollapsedNodes(ast, exps);
+    // }
 
     return exps;
 }
@@ -386,26 +373,24 @@ AR_ExpNode** AST_BuildWithExpressions(AST *ast, const cypher_astnode_t *with_cla
         const cypher_astnode_t *projection = cypher_ast_with_get_projection(with_clause, i);
         const cypher_astnode_t *expr = cypher_ast_projection_get_expression(projection);
 
-        AR_ExpNode *exp = NULL;
-        char *identifier = NULL;
+        uint record_id = NOT_IN_RECORD;
+        const char *identifier = NULL;
 
         if (cypher_astnode_type(expr) == CYPHER_AST_IDENTIFIER) {
             // Retrieve "a" from "with a" or "with a AS e"
-            identifier = (char*)cypher_ast_identifier_get_name(expr);
-            exp = AST_GetEntityFromAlias(ast, (char*)identifier);
+            identifier = cypher_ast_identifier_get_name(expr);
+            record_id = AST_GetEntityFromAlias(ast, (char*)identifier);
         }
 
-        if (exp == NULL) {
+        AR_ExpNode *exp = NULL;
+        if (record_id == NOT_IN_RECORD) {
             // Identifier did not appear in previous clauses.
             // It may be a constant or a function call (or other?)
             // Create a new entity to represent it.
             exp = AR_EXP_FromExpression(ast, expr);
 
             // Make space for entity in record
-            unsigned int id = AST_AddRecordEntry(ast);
-            AR_EXP_AssignRecordIndex(exp, id);
-            // Add entity to the set of entities to be populated
-            ast->defined_entities = array_append(ast->defined_entities, exp);
+            record_id = AST_MapAlias(ast, identifier);
         }
 
         // If the projection is aliased, add the alias to mappings and Record
@@ -416,11 +401,11 @@ AR_ExpNode** AST_BuildWithExpressions(AST *ast, const cypher_astnode_t *with_cla
             alias = (char*)cypher_ast_identifier_get_name(alias_node);
 
             // Associate alias with the expression
-            AST_MapAlias(ast, alias, exp);
-            exp->alias = alias;
+            AST_AssociateAliasWithID(ast, alias, record_id);
+            // exp->alias = alias;
             with_expressions = array_append(with_expressions, exp);
         } else {
-            exp->alias = identifier;
+            // exp->alias = identifier;
             with_expressions = array_append(with_expressions, exp);
         }
     }

@@ -29,11 +29,7 @@ void _ExecutionPlanSegment_BuildTraversalOps(QueryGraph *qg, FT_FilterNode *ft, 
     if (nelems == 1) {
         // Only one entity is specified - build a node scan.
         const cypher_astnode_t *ast_node = cypher_ast_pattern_path_get_element(path, 0);
-        AR_ExpNode *ar_exp = AST_GetEntity(ast, ast_node);
-        // Register entity for Record if necessary
-        AST_RecordAccommodateExpression(ast, ar_exp);
-
-        uint rec_idx = ar_exp->record_idx;
+        uint rec_idx = AST_GetEntityRecordIdx(ast, ast_node);
         Node *n = QueryGraph_GetEntityByASTRef(qg, ast_node);
         if(cypher_ast_node_pattern_nlabels(ast_node) > 0) {
             op = NewNodeByLabelScanOp(gc, n, rec_idx);
@@ -194,6 +190,8 @@ void _ExecutionPlanSegment_AddTraversalOps(Vector *ops, OpBase *cartesian_root, 
 
 ExecutionPlanSegment* _NewExecutionPlanSegment(RedisModuleCtx *ctx, GraphContext *gc, AST *ast, ResultSet *result_set, ExecutionPlanSegment *segment, OpBase *prev_op) {
     Vector *ops = NewVector(OpBase*, 1);
+
+    TrieMap *record_entity_mapping = NewTrieMap();
 
     // Build query graph
     QueryGraph *qg = BuildQueryGraph(gc, ast);
@@ -478,10 +476,7 @@ ExecutionPlanSegment* _PrepareSegment(AST *ast, AR_ExpNode **projections) {
             // TODO add interface
             AR_ExpNode *projection = projections[i];
             uint record_idx = AST_AddRecordEntry(ast);
-            AR_ExpNode *new_projection = AR_EXP_NewReferenceNode(projection->alias, record_idx, projection->collapsed);
-
-            AST_MapAlias(ast, projection->alias, new_projection);
-            ast->defined_entities = array_append(ast->defined_entities, new_projection);
+            AST_MapAlias(ast, projection->alias, record_idx);
         }
     }
 
